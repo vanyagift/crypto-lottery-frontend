@@ -2,7 +2,6 @@
 'use client'
 
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
-import { Button } from '@/components/ui/button'
 
 export function ConnectWallet() {
   const { address, isConnected, chain } = useAccount()
@@ -21,16 +20,16 @@ export function ConnectWallet() {
   }
 
   return (
-    <div className="flex items-center gap-4">
-      <div>
+    <div className="flex items-center gap-2">
+      <span className="font-mono text-sm">
         {address?.slice(0, 6)}...{address?.slice(-4)}
-        {chain?.id !== 97 && (
-          <span className="ml-2 text-red-500">→ Switch to BSC Testnet</span>
-        )}
-      </div>
+      </span>
+      {chain?.id !== 97 && (
+        <span className="ml-2 text-red-500 text-xs">→ Switch to BSC Testnet</span>
+      )}
       <button
         onClick={() => disconnect()}
-        className="text-sm text-gray-500 underline"
+        className="text-xs text-gray-500 underline"
       >
         Disconnect
       </button>
