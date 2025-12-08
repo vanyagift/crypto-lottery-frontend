@@ -7,7 +7,7 @@ export const config = createConfig({
   chains: [bscTestnet, bsc],
   connectors: [injected()],
   transports: {
-    [bscTestdev.id]: http(),
+    [bscTestnet.id]: http(),
     [bsc.id]: http(),
   },
 })
