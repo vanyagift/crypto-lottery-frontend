@@ -2,6 +2,7 @@
 import { http, createConfig } from 'wagmi'
 import { bsc, bscTestnet } from 'wagmi/chains'
 import { injected } from 'wagmi/connectors'
+import { WagmiProvider } from 'wagmi' // 👈 Добавь эту строку
 
 export const config = createConfig({
   chains: [bscTestnet, bsc],
@@ -11,6 +12,8 @@ export const config = createConfig({
     [bsc.id]: http(),
   },
 })
+
+export { WagmiProvider } // 👈 Экспортируй WagmiProvider
 
 declare module 'wagmi' {
   interface Register {
