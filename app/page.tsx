@@ -3,8 +3,8 @@
 
 import { useEffect } from 'react'
 import { useAccount } from 'wagmi'
-import { supabase } from '@/lib/supabase'
-import { ConnectWallet } from '@/components/ConnectWallet'
+import { supabase } from 'lib/supabase'
+import { ConnectWallet } from 'components/ConnectWallet'
 
 export default function HomePage() {
   const { address, isConnected } = useAccount()
