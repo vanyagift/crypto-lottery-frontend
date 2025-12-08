@@ -1,4 +1,4 @@
-// src/components/ConnectWallet.tsx
+// components/ConnectWallet.tsx
 'use client'
 
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
