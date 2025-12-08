@@ -2,6 +2,7 @@
 'use client'
 
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
+import { injected } from 'wagmi/connectors'
 
 export function ConnectWallet() {
   const { address, isConnected, chain } = useAccount()
@@ -11,7 +12,7 @@ export function ConnectWallet() {
   if (!isConnected) {
     return (
       <button
-        onClick={() => connect()}
+        onClick={() => connect({ connector: injected() })}
         className="px-4 py-2 bg-blue-600 text-white rounded-md"
       >
         Connect Wallet
