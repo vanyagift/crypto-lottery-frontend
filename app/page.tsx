@@ -11,7 +11,6 @@ export default function HomePage() {
   const [tickets, setTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
-  // Регистрация / вход + загрузка билетов
   useEffect(() => {
     if (isConnected && address) {
       const registerOrLogin = async () => {
@@ -23,18 +22,16 @@ export default function HomePage() {
             .single()
 
           if (selectError?.code === 'PGRST116') {
-            // Первый вход
             await supabase.from('users').insert({ wallet_address: address })
           } else if (data) {
-            // Повторный вход
             await supabase
               .from('users')
               .update({ last_login_at: new Date().toISOString() })
               .eq('wallet_address', address)
           }
 
-          // Загружаем ТОЛЬКО свои билеты
-          const { data: userTickets, error } = await supabase
+          // Загружаем билеты
+          const {  userTickets, error } = await supabase
             .from('tickets')
             .select('*')
             .eq('owner', address)
@@ -78,13 +75,6 @@ export default function HomePage() {
     }
   }
 
-  // Маппинг статусов
-  const statusLabels: Record<string, string> = {
-    bought: 'Not in draw',
-    in_draw: 'In current draw',
-    used: 'Used',
-  }
-
   return (
     <div className="min-h-screen p-6">
       <header className="flex justify-between items-center mb-8">
@@ -98,9 +88,7 @@ export default function HomePage() {
             <p className="text-green-800">
               ✅ Authorized as: <code className="font-mono">{address}</code>
             </p>
-            <p className="text-sm text-gray-600 mt-2">
-              Authorization successful.
-            </p>
+            <p className="text-sm text-gray-600 mt-2">Authorization successful.</p>
           </div>
 
           <div>
@@ -136,7 +124,7 @@ export default function HomePage() {
                       <div className="font-mono">#{t.id}</div>
                       <div className="capitalize text-sm">{t.type}</div>
                       <div className="text-xs text-gray-600">
-                        {statusLabels[t.status] || t.status}
+                        {t.status === 'available' ? 'Not in draw' : t.status}
                       </div>
                     </div>
                   </div>

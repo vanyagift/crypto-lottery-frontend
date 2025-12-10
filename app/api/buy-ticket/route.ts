@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'wallet_address is required' }, { status: 400 })
     }
 
-    // Атомарная покупка через RPC
+    // Атомарно выбираем и присваиваем билет
     const {  ticket, error: rpcError } = await supabase
       .rpc('get_and_assign_ticket', { wallet_address })
 
@@ -29,13 +29,13 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // ✅ Возвращаем данные билета с image
     return NextResponse.json({
       id: ticket.id,
       type: ticket.type,
-      status: ticket.status,
+      status: ticket.status, // ← 'available'
       owner: ticket.owner,
       image: ticket.image || '/default-ticket.png',
-      bet_amount: ticket.bet_amount,
       created_at: ticket.created_at,
     })
 
