@@ -10,12 +10,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'wallet_address required' }, { status: 400 })
     }
 
-    // Выбираем 1 случайный доступный билет (исключаем gift/ref)
+    // Выбираем 1 случайный доступный билет
     const { data: availableTickets, error: selectError } = await supabase
       .from('tickets')
       .select('id, type')
       .eq('owner', null)
-      .not('type', 'in', '("gift","ref")')
+      .not('type', 'in', '("gift","ref")') // Исключаем gift/ref
       .order('RANDOM()')
       .limit(1)
 
@@ -25,8 +25,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!availableTickets || availableTickets.length === 0) {
-      // Можно запустить авто-минт здесь (пока просто ошибка)
-      return NextResponse.json({ error: 'No tickets available — minting soon!' }, { status: 404 })
+      return NextResponse.json({ error: 'No tickets available. Please mint more.' }, { status: 404 })
     }
 
     const ticket = availableTickets[0]
@@ -49,6 +48,7 @@ export async function POST(req: NextRequest) {
       status: 'available',
       owner: wallet_address,
     })
+
   } catch (err) {
     console.error('API error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
