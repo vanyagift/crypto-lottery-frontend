@@ -10,32 +10,41 @@ export default function HomePage() {
   const { address, isConnected } = useAccount()
 
   // On connect — create user or update last_login_at
-  useEffect(() => {
-    if (isConnected && address) {
-      const registerOrLogin = async () => {
-        try {
-          const { data } = await supabase
-            .from('users')
-            .select('wallet_address')
-            .eq('wallet_address', address)
-            .single()
+useEffect(() => {
+  if (isConnected && address) {
+    const registerOrLogin = async () => {
+      try {
+        const { data, error: selectError } = await supabase
+          .from('users')
+          .select('wallet_address')
+          .eq('wallet_address', address)
+          .single()
 
-          if (!data) {
-            // Первый вход — создаём запись
-            await supabase
-              .from('users')
-              .insert({ wallet_address: address })
-          } else {
-            // Повторный вход — обновляем время последнего входа
-            await supabase
-              .from('users')
-              .update({ last_login_at: new Date().toISOString() })
-              .eq('wallet_address', address)
-          }
-        } catch (error) {
-          console.error('Error in user registration/login:', error)
+        if (selectError) {
+          console.error('Select error:', selectError)
+          return
         }
+
+        if (!data) {
+          console.log('Creating new user')
+          const { error: insertError } = await supabase
+            .from('users')
+            .insert({ wallet_address: address })
+          if (insertError) console.error('Insert error:', insertError)
+        } else {
+          console.log('Updating last_login_at for:', address)
+          const { error: updateError } = await supabase
+            .from('users')
+            .update({ last_login_at: new Date().toISOString() })
+            .eq('wallet_address', address)
+          if (updateError) console.error('Update error:', updateError)
+          else console.log('✅ last_login_at updated successfully')
+        }
+      } catch (error) {
+        console.error('Unexpected error:', error)
       }
+    }
+
 
       registerOrLogin()
     }
