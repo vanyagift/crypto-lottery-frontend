@@ -10,24 +10,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'wallet_address is required' }, { status: 400 })
     }
 
-    // Атомарно выбираем и присваиваем билет
-    const {  ticket, error: rpcError } = await supabase
-      .rpc('get_and_assign_ticket', { wallet_address })
+// Атомарно выбираем и присваиваем билет
+const { data: ticket, error: rpcError } = await supabase
+  .rpc('get_and_assign_ticket', { wallet_address });
 
-    if (rpcError) {
-      console.error('RPC error:', rpcError)
-      return NextResponse.json(
-        { error: 'No available tickets or internal error' },
-        { status: 500 }
-      )
-    }
+if (rpcError) {
+  return NextResponse.json({ error: 'Failed to assign ticket' }, { status: 500 });
+}
 
-    if (!ticket) {
-      return NextResponse.json(
-        { error: 'No tickets available. Please mint more.' },
-        { status: 404 }
-      )
-    }
+if (!ticket) {
+  return NextResponse.json({ error: 'No available tickets' }, { status: 404 });
+}
 
     // ✅ Возвращаем данные билета с image
     return NextResponse.json({
