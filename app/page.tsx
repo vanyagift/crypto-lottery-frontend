@@ -9,23 +9,35 @@ import { ConnectWallet } from '@/components/ConnectWallet'
 export default function HomePage() {
   const { address, isConnected } = useAccount()
 
-  // On connect — create user in `users` table if not exists
+  // On connect — create user or update last_login_at
   useEffect(() => {
     if (isConnected && address) {
-      const registerUser = async () => {
-        const { data } = await supabase
-          .from('users')
-          .select('wallet_address')
-          .eq('wallet_address', address)
-          .single()
-
-        if (!data) {
-          await supabase
+      const registerOrLogin = async () => {
+        try {
+          const { data } = await supabase
             .from('users')
-            .insert({ wallet_address: address })
+            .select('wallet_address')
+            .eq('wallet_address', address)
+            .single()
+
+          if (!data) {
+            // Первый вход — создаём запись
+            await supabase
+              .from('users')
+              .insert({ wallet_address: address })
+          } else {
+            // Повторный вход — обновляем время последнего входа
+            await supabase
+              .from('users')
+              .update({ last_login_at: new Date().toISOString() })
+              .eq('wallet_address', address)
+          }
+        } catch (error) {
+          console.error('Error in user registration/login:', error)
         }
       }
-      registerUser()
+
+      registerOrLogin()
     }
   }, [isConnected, address])
 

@@ -65,14 +65,6 @@ export function ConnectWallet() {
     )
   }
 
-  if (data) {
-  // Обновляем last_login_at при каждом входе
-  await supabase
-    .from('users')
-    .update({ last_login_at: new Date().toISOString() })
-    .eq('wallet_address', address)
-  }
-
   return (
     <button
       onClick={handleConnect}
