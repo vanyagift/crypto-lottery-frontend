@@ -42,7 +42,7 @@ export default function HomePage() {
             ✅ Connected as: <code className="font-mono">{address}</code>
           </p>
           <p className="text-sm text-gray-600 mt-2">
-            Authorization successful.
+            Authorization successful. OK
           </p>
         </div>
       ) : (
