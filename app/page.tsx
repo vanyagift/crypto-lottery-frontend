@@ -36,13 +36,17 @@ export default function HomePage() {
           }
 
           // Загружаем билеты пользователя
-          const {  userTickets } = await supabase
-            .from('tickets')
-            .select('*')
-            .eq('owner', address)
-            .order('created_at', { ascending: false })
+          const { data: userTickets, error } = await supabase
+         .from('tickets')
+         .select('*')
+         .eq('owner', address)
+         .order('created_at', { ascending: false })
 
-          setTickets(userTickets || [])
+        if (error) {
+          console.error('Failed to load tickets:', error)
+        } else {
+        setTickets(userTickets || [])
+        }
         } catch (err) {
           console.error('Auth or fetch error:', err)
         }
