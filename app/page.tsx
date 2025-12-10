@@ -11,43 +11,40 @@ export default function HomePage() {
   const [tickets, setTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
-  // При подключении — регистрация/вход + загрузка билетов
+  // Регистрация / вход + загрузка билетов
   useEffect(() => {
     if (isConnected && address) {
       const registerOrLogin = async () => {
         try {
           const { data, error: selectError } = await supabase
             .from('users')
-            .select('wallet_address, created_at')
+            .select('wallet_address')
             .eq('wallet_address', address)
             .single()
 
           if (selectError?.code === 'PGRST116') {
-            // Пользователь не найден → создаём
-            await supabase
-              .from('users')
-              .insert({ wallet_address: address })
+            // Первый вход
+            await supabase.from('users').insert({ wallet_address: address })
           } else if (data) {
-            // Обновляем last_login_at при каждом входе
+            // Повторный вход
             await supabase
               .from('users')
               .update({ last_login_at: new Date().toISOString() })
               .eq('wallet_address', address)
           }
 
-          // Загружаем билеты пользователя
-
+          // Загружаем ТОЛЬКО свои билеты
           const { data: userTickets, error } = await supabase
-         .from('tickets')
-         .select('*')
-         .eq('owner', address)
-         .order('created_at', { ascending: false })
+            .from('tickets')
+            .select('*')
+            .eq('owner', address)
+            .order('created_at', { ascending: false })
 
-        if (error) {
-          console.error('Failed to load tickets:', error)
-        } else {
-        setTickets(userTickets || [])
-        }
+          if (error) {
+            console.error('Failed to load tickets:', error)
+          } else {
+            setTickets(userTickets || [])
+          }
         } catch (err) {
           console.error('Auth or fetch error:', err)
         }
@@ -70,7 +67,8 @@ export default function HomePage() {
         const newTicket = await res.json()
         setTickets((prev) => [newTicket, ...prev])
       } else {
-        alert('Failed to buy ticket')
+        const err = await res.json()
+        alert(`Failed to buy ticket: ${err.error || 'Unknown error'}`)
       }
     } catch (err) {
       console.error(err)
@@ -78,6 +76,13 @@ export default function HomePage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Маппинг статусов
+  const statusLabels: Record<string, string> = {
+    bought: 'Not in draw',
+    in_draw: 'In current draw',
+    used: 'Used',
   }
 
   return (
@@ -115,10 +120,25 @@ export default function HomePage() {
             ) : (
               <div className="space-y-2">
                 {tickets.map((t) => (
-                  <div key={t.id} className="p-3 border rounded">
-                    <span className="font-mono">#{t.id}</span> ·{' '}
-                    <span className="capitalize">{t.type}</span> ·{' '}
-                    {t.status === 'available' ? 'Not in draw' : t.status}
+                  <div key={t.id} className="flex items-center gap-3 p-3 border rounded">
+                    {t.image ? (
+                      <img
+                        src={t.image}
+                        alt={`${t.type} ticket`}
+                        className="w-12 h-12 object-cover rounded"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                        ?
+                      </div>
+                    )}
+                    <div>
+                      <div className="font-mono">#{t.id}</div>
+                      <div className="capitalize text-sm">{t.type}</div>
+                      <div className="text-xs text-gray-600">
+                        {statusLabels[t.status] || t.status}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
