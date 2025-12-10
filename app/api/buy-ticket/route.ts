@@ -10,44 +10,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'wallet_address required' }, { status: 400 })
     }
 
-// Выбираем 1 случайный доступный билет через RPC
-const { data: availableTickets, error: selectError } = await supabase
-  .rpc('get_random_available_tickets', { n: 1 });
-
-if (selectError) {
-  console.error('RPC select error:', selectError);
-  return NextResponse.json(
-    { error: 'Failed to fetch available tickets' },
-    { status: 500 }
-  );
-}
-
-if (!availableTickets || availableTickets.length === 0) {
-  return NextResponse.json(
-    { error: 'No tickets available. Please mint more.' },
-    { status: 404 }
-  );
-}
-
-const ticket = availableTickets[0];
-
-    // Присваиваем владельца
-    const { error: updateError } = await supabase
-      .from('tickets')
-      .update({ owner: wallet_address, status: 'available' })
-      .eq('id', ticket.id)
+    // Атомарный запрос: выбрать и обновить один билет за раз
+    const { data: ticket, error: updateError } = await supabase
+      .rpc('get_and_assign_ticket', { wallet_address: wallet_address })
 
     if (updateError) {
-      console.error('Update error:', updateError)
+      console.error('RPC error:', updateError)
       return NextResponse.json({ error: 'Failed to assign ticket' }, { status: 500 })
     }
 
-    // Возвращаем билет
+    if (!ticket) {
+      return NextResponse.json({ error: 'No tickets available. Please mint more.' }, { status: 404 })
+    }
+
+    // Возвращаем билет с image (если есть в таблице)
     return NextResponse.json({
       id: ticket.id,
       type: ticket.type,
-      status: 'available',
-      owner: wallet_address,
+      status: ticket.status,
+      owner: ticket.owner,
+      image: ticket.image || '/default-ticket.png', // Если image не указано, используем заглушку
+      created_at: ticket.created_at,
     })
 
   } catch (err) {

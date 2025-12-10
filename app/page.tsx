@@ -36,6 +36,7 @@ export default function HomePage() {
           }
 
           // Загружаем билеты пользователя
+
           const { data: userTickets, error } = await supabase
          .from('tickets')
          .select('*')
