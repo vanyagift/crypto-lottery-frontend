@@ -19,11 +19,12 @@ export function ConnectWallet() {
   }, [isConnected])
 
   const handleConnect = () => {
-    // Check for provider at click time
-    if (typeof window === 'undefined' || !window.ethereum) {
-      setShowInstallMessage(true)
-      return
-    }
+  if (typeof window === 'undefined' || !(window as any).ethereum) {
+    setShowInstallMessage(true)
+    return
+  }
+  connect({ connector: injected() })
+}
 
     // Connect if available
     connect({ connector: injected() })
