@@ -1,7 +1,7 @@
 // app/page.tsx
 'use client'
 
-import { useEffect } from 'react'  // ✅ Правильно!
+import { useEffect } from 'react'
 import { useAccount } from 'wagmi'
 import { supabase } from '@/lib/supabase'
 import { ConnectWallet } from '@/components/ConnectWallet'
@@ -9,7 +9,7 @@ import { ConnectWallet } from '@/components/ConnectWallet'
 export default function HomePage() {
   const { address, isConnected } = useAccount()
 
-  // При подключении — создаём запись в users (если нет)
+  // On connect — create user in `users` table if not exists
   useEffect(() => {
     if (isConnected && address) {
       const registerUser = async () => {
@@ -32,21 +32,21 @@ export default function HomePage() {
   return (
     <div className="min-h-screen p-6">
       <header className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Crypto Lottery</h1>
+        <h1 className="text-2xl font-bold">Crypto Lottery Today</h1>
         <ConnectWallet />
       </header>
 
       {isConnected ? (
         <div className="bg-green-50 p-4 rounded">
           <p className="text-green-800">
-            ✅ Вы вошли как: <code className="font-mono">{address}</code>
+            ✅ Connected as: <code className="font-mono">{address}</code>
           </p>
           <p className="text-sm text-gray-600 mt-2">
-            Ваш аккаунт автоматически создан в системе.
+            Authorization successful.
           </p>
         </div>
       ) : (
-        <p>Подключите кошелёк, чтобы продолжить</p>
+        <p>Connect your wallet to continue</p>
       )}
     </div>
   )
