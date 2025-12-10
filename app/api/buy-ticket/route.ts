@@ -10,25 +10,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'wallet_address required' }, { status: 400 })
     }
 
-    // Выбираем 1 случайный доступный билет
-    const { data: availableTickets, error: selectError } = await supabase
-      .from('tickets')
-      .select('id, type')
-      .eq('owner', null)
-      .not('type', 'in', '("gift","ref")') // Исключаем gift/ref
-      .order('RANDOM()')
-      .limit(1)
+// Выбираем 1 случайный доступный билет через RPC
+const { data: availableTickets, error: selectError } = await supabase
+  .rpc('get_random_available_tickets', { n: 1 });
 
-    if (selectError) {
-      console.error('Select error:', selectError)
-      return NextResponse.json({ error: 'Failed to find available tickets' }, { status: 500 })
-    }
+if (selectError) {
+  console.error('RPC select error:', selectError);
+  return NextResponse.json(
+    { error: 'Failed to fetch available tickets' },
+    { status: 500 }
+  );
+}
 
-    if (!availableTickets || availableTickets.length === 0) {
-      return NextResponse.json({ error: 'No tickets available. Please mint more.' }, { status: 404 })
-    }
+if (!availableTickets || availableTickets.length === 0) {
+  return NextResponse.json(
+    { error: 'No tickets available. Please mint more.' },
+    { status: 404 }
+  );
+}
 
-    const ticket = availableTickets[0]
+const ticket = availableTickets[0];
 
     // Присваиваем владельца
     const { error: updateError } = await supabase
