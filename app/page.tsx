@@ -45,7 +45,7 @@ export default function HomePage() {
           console.error('Draw fetch error:', drawError)
         } else if (draw) {
           // Подсчёт уникальных участников через RPC
-          const {  count } = await supabase.rpc('count_draw_participants', {
+          const { data: count } = await supabase.rpc('count_draw_participants', {
             draw_id_input: draw.id,
           })
 
@@ -60,7 +60,7 @@ export default function HomePage() {
 
       // 3. Загрузка билетов пользователя
       try {
-        const {  userTickets, error } = await supabase
+        const { data: userTickets, error } = await supabase
           .from('tickets')
           .select('*')
           .eq('owner', address)
@@ -76,8 +76,8 @@ export default function HomePage() {
       }
     }
 
-    init()
-  }, [isConnected, address])
+    init() // ✅ Вызов внутри useEffect, но после определения функции
+  }, [isConnected, address]) // ✅ Закрывающая скобка useEffect
 
   const handleEnterDraw = () => {
     if (!currentDraw) return
