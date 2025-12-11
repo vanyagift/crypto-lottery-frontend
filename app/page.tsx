@@ -1,4 +1,4 @@
-// app/page.tsx (обновлённый фрагмент)
+// app/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -17,64 +17,63 @@ export default function HomePage() {
       if (!isConnected || !address) return
 
       // 1. Регистрация / вход
-      const { data } = await supabase
-        .from('users')
-        .select('wallet_address')
-        .eq('wallet_address', address)
-        .single()
+      try {
+        const { data } = await supabase
+          .from('users')
+          .select('wallet_address')
+          .eq('wallet_address', address)
+          .single()
 
-      if (!data) {
-        await supabase.from('users').insert({ wallet_address: address })
+        if (!data) {
+          await supabase.from('users').insert({ wallet_address: address })
+        }
+      } catch (err) {
+        console.error('Failed to register user:', err)
       }
 
-    // 2. Загрузка активного розыгрыша
-const { data: draw, error: drawError } = await supabase
-  .from('draws')
-  .select('*')
-  .eq('status', 'active')
-  .order('end_at', { ascending: false })
-  .limit(1)
-  .single()
+      // 2. Загрузка активного розыгрыша
+      try {
+        const { data: draw, error: drawError } = await supabase
+          .from('draws')
+          .select('*')
+          .eq('status', 'active')
+          .order('end_at', { ascending: false })
+          .limit(1)
+          .single()
 
-if (drawError) {
-  console.error('Failed to load active draw:', drawError)
-  // Можно показать заглушку или пропустить
-} else if (draw) {
-  // Подсчёт участников
-  const {  count } = await supabase
-    .from('tickets')
-    .select('owner', { count: 'exact', distinct: true })
-    .eq('draw_id', draw.id)
-    .not('owner', 'is', null)
+        if (drawError && drawError.code !== 'PGRST116') {
+          console.error('Draw fetch error:', drawError)
+        } else if (draw) {
+          // Подсчёт уникальных участников через RPC
+          const {  count } = await supabase.rpc('count_draw_participants', {
+            draw_id_input: draw.id,
+          })
 
-  setCurrentDraw({
-    ...draw,
-    participants: count || 0,
-  })
-}
-
-      if (draw) {
-        // Подсчёт участников: билеты в этом розыгрыше с уникальными owner
-        const {  count } = await supabase
-          .from('tickets')
-          .select('owner', { count: 'exact', distinct: true })
-          .eq('draw_id', draw.id)
-          .not('owner', 'is', null)
-
-        setCurrentDraw({
-          ...draw,
-          participants: count || 0,
-        })
+          setCurrentDraw({
+            ...draw,
+            participants: count || 0,
+          })
+        }
+      } catch (err) {
+        console.error('Error loading draw:', err)
       }
 
       // 3. Загрузка билетов пользователя
-      const {  userTickets } = await supabase
-        .from('tickets')
-        .select('*')
-        .eq('owner', address)
-        .order('created_at', { ascending: false })
+      try {
+        const {  userTickets, error } = await supabase
+          .from('tickets')
+          .select('*')
+          .eq('owner', address)
+          .order('created_at', { ascending: false })
 
-      setTickets(userTickets || [])
+        if (error) {
+          console.error('Failed to load tickets:', error)
+        } else {
+          setTickets(userTickets || [])
+        }
+      } catch (err) {
+        console.error('Error loading tickets:', err)
+      }
     }
 
     init()
@@ -82,8 +81,31 @@ if (drawError) {
 
   const handleEnterDraw = () => {
     if (!currentDraw) return
-    alert('Opening ticket selection modal (not implemented yet)')
-    // TODO: открыть модалку с выбором билетов для участия
+    alert('Ticket selection modal will open here (not implemented yet)')
+  }
+
+  const handleBuyTicket = async () => {
+    if (!address) return
+    setLoading(true)
+    try {
+      const res = await fetch('/api/buy-ticket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet_address: address }),
+      })
+      if (res.ok) {
+        const newTicket = await res.json()
+        setTickets((prev) => [newTicket, ...prev])
+      } else {
+        const err = await res.json()
+        alert(`Failed to buy ticket: ${err.error || 'Unknown error'}`)
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Error buying ticket')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -95,7 +117,7 @@ if (drawError) {
 
       {isConnected ? (
         <div className="space-y-6">
-          {/* 🔢 Блок текущего розыгрыша */}
+          {/* 🕒 Current Draw */}
           {currentDraw ? (
             <div className="border rounded-lg p-4 bg-gradient-to-r from-indigo-50 to-purple-50">
               <h2 className="text-xl font-bold mb-2">Draw #{currentDraw.id}</h2>
@@ -137,13 +159,22 @@ if (drawError) {
             </div>
           )}
 
-          {/* 🎟️ Список билетов */}
+          {/* 🎟️ Your Tickets */}
           <div>
-            <h2 className="text-lg font-semibold mb-2">Your Tickets</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold">Your Tickets</h2>
+              <button
+                onClick={handleBuyTicket}
+                disabled={loading}
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded disabled:opacity-50"
+              >
+                {loading ? 'Buying...' : 'Buy Ticket'}
+              </button>
+            </div>
             {tickets.length === 0 ? (
-              <p className="text-gray-500">No tickets yet. Buy your first one!</p>
+              <p className="text-gray-500 mt-2">No tickets yet. Buy your first one!</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 mt-2">
                 {tickets.map((t) => (
                   <div key={t.id} className="p-3 border rounded">
                     <span className="font-mono">#{t.id}</span> ·{' '}
@@ -154,24 +185,6 @@ if (drawError) {
               </div>
             )}
           </div>
-
-          {/* 💰 Кнопка Buy Ticket (можно оставить ниже) */}
-          <button
-            onClick={async () => {
-              const res = await fetch('/api/buy-ticket', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ wallet_address: address }),
-              })
-              if (res.ok) {
-                const newTicket = await res.json()
-                setTickets((prev) => [newTicket, ...prev])
-              }
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md"
-          >
-            Buy Ticket
-          </button>
         </div>
       ) : (
         <p>Connect your wallet to continue</p>
