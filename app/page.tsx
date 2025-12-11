@@ -1,4 +1,4 @@
-// app/page.tsx
+// app/page.tsx (обновлённый фрагмент)
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -9,70 +9,64 @@ import { ConnectWallet } from '@/components/ConnectWallet'
 export default function HomePage() {
   const { address, isConnected } = useAccount()
   const [tickets, setTickets] = useState<any[]>([])
+  const [currentDraw, setCurrentDraw] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (isConnected && address) {
-      const registerOrLogin = async () => {
-        try {
-          const { data, error: selectError } = await supabase
-            .from('users')
-            .select('wallet_address')
-            .eq('wallet_address', address)
-            .single()
+    const init = async () => {
+      if (!isConnected || !address) return
 
-          if (selectError?.code === 'PGRST116') {
-            await supabase.from('users').insert({ wallet_address: address })
-          } else if (data) {
-            await supabase
-              .from('users')
-              .update({ last_login_at: new Date().toISOString() })
-              .eq('wallet_address', address)
-          }
+      // 1. Регистрация / вход
+      const { data } = await supabase
+        .from('users')
+        .select('wallet_address')
+        .eq('wallet_address', address)
+        .single()
 
-          // Загружаем билеты
-          const {  userTickets, error } = await supabase
-            .from('tickets')
-            .select('*')
-            .eq('owner', address)
-            .order('created_at', { ascending: false })
-
-          if (error) {
-            console.error('Failed to load tickets:', error)
-          } else {
-            setTickets(userTickets || [])
-          }
-        } catch (err) {
-          console.error('Auth or fetch error:', err)
-        }
+      if (!data) {
+        await supabase.from('users').insert({ wallet_address: address })
       }
 
-      registerOrLogin()
+      // 2. Загрузка активного розыгрыша
+      const {  draw } = await supabase
+        .from('draws')
+        .select('*')
+        .eq('status', 'active')
+        .order('end_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (draw) {
+        // Подсчёт участников: билеты в этом розыгрыше с уникальными owner
+        const {  count } = await supabase
+          .from('tickets')
+          .select('owner', { count: 'exact', distinct: true })
+          .eq('draw_id', draw.id)
+          .not('owner', 'is', null)
+
+        setCurrentDraw({
+          ...draw,
+          participants: count || 0,
+        })
+      }
+
+      // 3. Загрузка билетов пользователя
+      const {  userTickets } = await supabase
+        .from('tickets')
+        .select('*')
+        .eq('owner', address)
+        .order('created_at', { ascending: false })
+
+      setTickets(userTickets || [])
     }
+
+    init()
   }, [isConnected, address])
 
-  const handleBuyTicket = async () => {
-    if (!address) return
-    setLoading(true)
-    try {
-      const res = await fetch('/api/buy-ticket', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wallet_address: address }),
-      })
-      if (res.ok) {
-        const newTicket = await res.json()
-        setTickets((prev) => [newTicket, ...prev])
-      } else {
-        const err = await res.json()
-        alert(`Failed to buy ticket: ${err.error || 'Unknown error'}`)
-      }
-    } catch (err) {
-      console.error(err)
-      alert('Error buying ticket')
-    } finally {
-      setLoading(false)
-    }
+  const handleEnterDraw = () => {
+    if (!currentDraw) return
+    alert('Opening ticket selection modal (not implemented yet)')
+    // TODO: открыть модалку с выбором билетов для участия
   }
 
   return (
@@ -84,23 +78,49 @@ export default function HomePage() {
 
       {isConnected ? (
         <div className="space-y-6">
-          <div className="bg-green-50 p-4 rounded">
-            <p className="text-green-800">
-              ✅ Authorized as: <code className="font-mono">{address}</code>
-            </p>
-            <p className="text-sm text-gray-600 mt-2">Authorization successful.</p>
-          </div>
+          {/* 🔢 Блок текущего розыгрыша */}
+          {currentDraw ? (
+            <div className="border rounded-lg p-4 bg-gradient-to-r from-indigo-50 to-purple-50">
+              <h2 className="text-xl font-bold mb-2">Draw #{currentDraw.id}</h2>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="text-gray-600">Prize Pool:</span>{' '}
+                  <span className="font-bold">${currentDraw.prize_pool.toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Jackpot:</span>{' '}
+                  <span className="font-bold text-amber-600">${currentDraw.jackpot.toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Participants:</span>{' '}
+                  <span className="font-bold">{currentDraw.participants}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Ends at:</span>{' '}
+                  <span className="font-bold">
+                    {new Date(currentDraw.end_at).toLocaleString('en-GB', {
+                      day: '2-digit',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={handleEnterDraw}
+                className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+              >
+                Enter Draw
+              </button>
+            </div>
+          ) : (
+            <div className="p-4 text-gray-500 italic">
+              No active draw currently. Next draw starts soon.
+            </div>
+          )}
 
-          <div>
-            <button
-              onClick={handleBuyTicket}
-              disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:opacity-50"
-            >
-              {loading ? 'Buying...' : 'Buy Ticket'}
-            </button>
-          </div>
-
+          {/* 🎟️ Список билетов */}
           <div>
             <h2 className="text-lg font-semibold mb-2">Your Tickets</h2>
             {tickets.length === 0 ? (
@@ -108,30 +128,33 @@ export default function HomePage() {
             ) : (
               <div className="space-y-2">
                 {tickets.map((t) => (
-                  <div key={t.id} className="flex items-center gap-3 p-3 border rounded">
-                    {t.image ? (
-                      <img
-                        src={t.image}
-                        alt={`${t.type} ticket`}
-                        className="w-12 h-12 object-cover rounded"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
-                        ?
-                      </div>
-                    )}
-                    <div>
-                      <div className="font-mono">#{t.id}</div>
-                      <div className="capitalize text-sm">{t.type}</div>
-                      <div className="text-xs text-gray-600">
-                        {t.status === 'available' ? 'Not in draw' : t.status}
-                      </div>
-                    </div>
+                  <div key={t.id} className="p-3 border rounded">
+                    <span className="font-mono">#{t.id}</span> ·{' '}
+                    <span className="capitalize">{t.type}</span> ·{' '}
+                    {t.status === 'available' ? 'Not in draw' : t.status}
                   </div>
                 ))}
               </div>
             )}
           </div>
+
+          {/* 💰 Кнопка Buy Ticket (можно оставить ниже) */}
+          <button
+            onClick={async () => {
+              const res = await fetch('/api/buy-ticket', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wallet_address: address }),
+              })
+              if (res.ok) {
+                const newTicket = await res.json()
+                setTickets((prev) => [newTicket, ...prev])
+              }
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md"
+          >
+            Buy Ticket
+          </button>
         </div>
       ) : (
         <p>Connect your wallet to continue</p>
