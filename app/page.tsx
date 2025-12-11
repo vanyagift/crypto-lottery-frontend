@@ -27,14 +27,31 @@ export default function HomePage() {
         await supabase.from('users').insert({ wallet_address: address })
       }
 
-      // 2. Загрузка активного розыгрыша
-      const {  draw } = await supabase
-        .from('draws')
-        .select('*')
-        .eq('status', 'active')
-        .order('end_at', { ascending: false })
-        .limit(1)
-        .single()
+    // 2. Загрузка активного розыгрыша
+const { data: draw, error: drawError } = await supabase
+  .from('draws')
+  .select('*')
+  .eq('status', 'active')
+  .order('end_at', { ascending: false })
+  .limit(1)
+  .single()
+
+if (drawError) {
+  console.error('Failed to load active draw:', drawError)
+  // Можно показать заглушку или пропустить
+} else if (draw) {
+  // Подсчёт участников
+  const {  count } = await supabase
+    .from('tickets')
+    .select('owner', { count: 'exact', distinct: true })
+    .eq('draw_id', draw.id)
+    .not('owner', 'is', null)
+
+  setCurrentDraw({
+    ...draw,
+    participants: count || 0,
+  })
+}
 
       if (draw) {
         // Подсчёт участников: билеты в этом розыгрыше с уникальными owner
