@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Дополнительные глобальные стили */
+body {
+  background-color: #fff;
+  color: #111827; /* это gray-900 */
+}
+
+/* Защита от переопределения img */
+img {
+  max-width: 100%;
+  height: auto;
+}

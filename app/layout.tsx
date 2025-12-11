@@ -1,6 +1,7 @@
 // app/layout.tsx
 'use client'
 
+import './globals.css' // 👈 добавлена эта строка
 import { config } from '@/lib/wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider } from '@/lib/wagmi'

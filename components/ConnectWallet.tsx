@@ -6,12 +6,12 @@ import { useAccount, useConnect, useDisconnect } from 'wagmi'
 import { injected } from 'wagmi/connectors'
 
 export function ConnectWallet() {
-  const { address, isConnected, chain } = useAccount()
+  const { address, isConnected, chain, connector } = useAccount() // ← добавили connector
   const { connect } = useConnect()
   const { disconnect } = useDisconnect()
+
   const [showInstallMessage, setShowInstallMessage] = useState(false)
 
-  // Reset install message on connect/disconnect
   useEffect(() => {
     if (isConnected) {
       setShowInstallMessage(false)
@@ -26,7 +26,16 @@ export function ConnectWallet() {
     connect({ connector: injected() })
   }
 
-  if (isConnected) {
+  const handleDisconnect = () => {
+    // Явно передаём connector, если он есть
+    if (connector) {
+      disconnect({ connector })
+    } else {
+      disconnect()
+    }
+  }
+
+  if (isConnected && address) {
     return (
       <div className="flex items-center gap-2">
         <span className="font-mono text-sm">
@@ -36,7 +45,7 @@ export function ConnectWallet() {
           <span className="ml-2 text-red-500 text-xs">→ Switch to BSC Testnet</span>
         )}
         <button
-          onClick={() => disconnect()}
+          onClick={handleDisconnect} // ← исправлено: handleDisconnect
           className="text-xs text-gray-500 underline"
         >
           Disconnect
@@ -52,7 +61,7 @@ export function ConnectWallet() {
         <p className="mt-1 text-sm">
           Please install{' '}
           <a
-            href="https://metamask.io/download/"
+            href="https://metamask.io/download/" // ← убраны пробелы
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 underline"

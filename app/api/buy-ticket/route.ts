@@ -11,22 +11,24 @@ export async function POST(req: NextRequest) {
     }
 
 // Атомарно выбираем и присваиваем билет
-const { data: ticket, error: rpcError } = await supabase
-  .rpc('get_and_assign_ticket', { wallet_address });
+const { data: tickets, error: rpcError } = await supabase.rpc('get_and_assign_ticket', { wallet_address });
 
 if (rpcError) {
+  console.error('RPC error:', rpcError);
   return NextResponse.json({ error: 'Failed to assign ticket' }, { status: 500 });
 }
+
+// RPC возвращает массив, даже если одна строка
+const ticket = Array.isArray(tickets) ? tickets[0] : tickets;
 
 if (!ticket) {
   return NextResponse.json({ error: 'No available tickets' }, { status: 404 });
 }
 
-    // ✅ Возвращаем данные билета с image
     return NextResponse.json({
       id: ticket.id,
       type: ticket.type,
-      status: ticket.status, // ← 'available'
+      status: ticket.status,
       owner: ticket.owner,
       image: ticket.image || '/default-ticket.png',
       created_at: ticket.created_at,

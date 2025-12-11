@@ -5,12 +5,16 @@ const config: Config = {
   content: [
     './app/**/*.{js,ts,jsx,tsx}',
     './components/**/*.{js,ts,jsx,tsx}',
-    './lib/**/*.{js,ts,jsx,tsx}', // на всякий случай
   ],
   theme: {
     extend: {},
   },
   plugins: [],
+  safelist: [
+    'bg-white',
+    'text-gray-900',
+    // Добавь сюда другие классы, которые используешь только в @apply
+  ],
 }
 
 export default config

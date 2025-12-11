@@ -1,20 +1,20 @@
 // app/page.tsx
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { useAccount } from 'wagmi'
-import { supabase } from '@/lib/supabase'
-import { ConnectWallet } from '@/components/ConnectWallet'
+import { useEffect, useState } from 'react';
+import { useAccount } from 'wagmi';
+import { supabase } from '@/lib/supabase';
+import { ConnectWallet } from '@/components/ConnectWallet';
 
 export default function HomePage() {
-  const { address, isConnected } = useAccount()
-  const [tickets, setTickets] = useState<any[]>([])
-  const [currentDraw, setCurrentDraw] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
+  const { address, isConnected } = useAccount();
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [currentDraw, setCurrentDraw] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const init = async () => {
-      if (!isConnected || !address) return
+      if (!isConnected || !address) return;
 
       // 1. Регистрация / вход
       try {
@@ -22,13 +22,18 @@ export default function HomePage() {
           .from('users')
           .select('wallet_address')
           .eq('wallet_address', address)
-          .single()
+          .single();
 
         if (!data) {
-          await supabase.from('users').insert({ wallet_address: address })
+          await supabase.from('users').insert({ wallet_address: address });
+        } else {
+          await supabase
+            .from('users')
+            .update({ last_login_at: new Date().toISOString() })
+            .eq('wallet_address', address);
         }
       } catch (err) {
-        console.error('Failed to register user:', err)
+        console.error('Failed to register or log in user:', err);
       }
 
       // 2. Загрузка активного розыгрыша
@@ -39,23 +44,22 @@ export default function HomePage() {
           .eq('status', 'active')
           .order('end_at', { ascending: false })
           .limit(1)
-          .single()
+          .single();
 
         if (drawError && drawError.code !== 'PGRST116') {
-          console.error('Draw fetch error:', drawError)
+          console.error('Draw fetch error:', drawError);
         } else if (draw) {
-          // Подсчёт уникальных участников через RPC
-          const { data: count } = await supabase.rpc('count_draw_participants', {
+          const {  count } = await supabase.rpc('count_draw_participants', {
             draw_id_input: draw.id,
-          })
+          });
 
           setCurrentDraw({
             ...draw,
             participants: count || 0,
-          })
+          });
         }
       } catch (err) {
-        console.error('Error loading draw:', err)
+        console.error('Error loading draw:', err);
       }
 
       // 3. Загрузка билетов пользователя
@@ -64,49 +68,56 @@ export default function HomePage() {
           .from('tickets')
           .select('*')
           .eq('owner', address)
-          .order('created_at', { ascending: false })
+          .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('Failed to load tickets:', error)
+          console.error('Failed to load tickets:', error);
         } else {
-          setTickets(userTickets || [])
+          setTickets(userTickets || []);
         }
       } catch (err) {
-        console.error('Error loading tickets:', err)
+        console.error('Error loading tickets:', err);
       }
-    }
+    };
 
-    init() // ✅ Вызов внутри useEffect, но после определения функции
-  }, [isConnected, address]) // ✅ Закрывающая скобка useEffect
+    init();
+  }, [isConnected, address]);
 
   const handleEnterDraw = () => {
-    if (!currentDraw) return
-    alert('Ticket selection modal will open here (not implemented yet)')
-  }
+    if (!currentDraw) return;
+    alert('Ticket selection modal will open here (not implemented yet)');
+  };
 
   const handleBuyTicket = async () => {
-    if (!address) return
-    setLoading(true)
+    if (!address) return;
+    setLoading(true);
     try {
       const res = await fetch('/api/buy-ticket', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wallet_address: address }),
-      })
+      });
+
       if (res.ok) {
-        const newTicket = await res.json()
-        setTickets((prev) => [newTicket, ...prev])
+        const newTicket = await res.json();
+        setTickets((prev) => [newTicket, ...prev]);
       } else {
-        const err = await res.json()
-        alert(`Failed to buy ticket: ${err.error || 'Unknown error'}`)
+        const err = await res.json();
+        alert(`Failed to buy ticket: ${err.error || 'Unknown error'}`);
       }
     } catch (err) {
-      console.error(err)
-      alert('Error buying ticket')
+      console.error(err);
+      alert('Error buying ticket');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  // Отображаемое имя статуса
+  const getStatusLabel = (status: string) => {
+    if (status === 'available') return 'Not in draw';
+    return status;
+  };
 
   return (
     <div className="min-h-screen p-6">
@@ -176,10 +187,18 @@ export default function HomePage() {
             ) : (
               <div className="space-y-2 mt-2">
                 {tickets.map((t) => (
-                  <div key={t.id} className="p-3 border rounded">
+                  <div key={t.id} className="p-3 border rounded flex items-center gap-3">
+                    {t.image && (
+                      <img
+  src={t.image.trim() || '/default-ticket.png'}
+  alt={`${t.type} ticket`}
+  className="w-6 h-6 object-cover rounded"
+  onError={(e) => (e.currentTarget.src = '/default-ticket.png')}
+/>
+                    )}
                     <span className="font-mono">#{t.id}</span> ·{' '}
                     <span className="capitalize">{t.type}</span> ·{' '}
-                    {t.status === 'available' ? 'Not in draw' : t.status}
+                    {getStatusLabel(t.status)}
                   </div>
                 ))}
               </div>
@@ -190,5 +209,5 @@ export default function HomePage() {
         <p>Connect your wallet to continue</p>
       )}
     </div>
-  )
+  );
 }
